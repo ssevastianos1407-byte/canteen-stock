@@ -1,156 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Canteen Stock</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  const API_URL = "https://elementary-pos-stock-server.onrender.com/stock";
+  const grid = document.getElementById("products");
+  let products = [];
+  let retries = 0;
 
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #22c55e;
-    }
+  function showLoading(text = "Loading stock…") {
+    grid.innerHTML = `<p style="color:#9ca3af">${text}</p>`;
+  }
 
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+  async function loadStock() {
+    showLoading("Waking up server…");
 
-    body {
-      margin: 0;
-      background: linear-gradient(180deg, #020617, #0f172a);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 20px;
-    }
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error("Bad response");
 
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+      products = await res.json();
+      render(products);
+    } catch (err) {
+      retries++;
 
-    header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
-
-    header p {
-      margin: 5px 0 0;
-      color: var(--muted);
-    }
-
-    input {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
-      outline: none;
-      margin-bottom: 20px;
-      font-size: 1rem;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 14px;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      box-shadow: 0 10px 30px rgba(0,0,0,.4);
-      transition: transform .15s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-3px);
-    }
-
-    .name {
-      font-size: .95rem;
-      margin-bottom: 10px;
-    }
-
-    .stock {
-      font-weight: bold;
-      color: var(--accent);
-      font-size: .9rem;
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 30px;
-      color: var(--muted);
-      font-size: .8rem;
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <h1>🥪 Canteen Stock</h1>
-    <p>Available right now</p>
-  </header>
-
-  <input
-    type="text"
-    id="search"
-    placeholder="Search product..."
-    oninput="filterProducts()"
-  />
-
-  <div class="grid" id="products"></div>
-
-  <footer>
-    Updated live from canteen
-  </footer>
-
-  <script>
-    const API_URL = "https://elementary-pos-stock-server.onrender.com/stock";
-    let products = [];
-
-    async function loadStock() {
-      try {
-        const res = await fetch(API_URL);
-        products = await res.json();
-        render(products);
-      } catch {
-        document.getElementById("products").innerHTML =
-          "<p>Failed to load stock</p>";
+      if (retries <= 5) {
+        showLoading(`Still loading… (${retries}/5)`);
+        setTimeout(loadStock, 8000); // retry every 8s
+      } else {
+        showLoading("Server is slow right now. Please refresh.");
       }
     }
+  }
 
-    function render(list) {
-      const grid = document.getElementById("products");
-      grid.innerHTML = "";
-
-      list.forEach(p => {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        card.innerHTML = `
-          <div class="name">${p.name}</div>
-          <div class="stock">${p.stock} available</div>
-        `;
-
-        grid.appendChild(card);
-      });
+  function render(list) {
+    if (!list.length) {
+      grid.innerHTML = "<p>No products available</p>";
+      return;
     }
 
-    function filterProducts() {
-      const q = document.getElementById("search").value.toLowerCase();
-      render(products.filter(p => p.name.toLowerCase().includes(q)));
-    }
+    grid.innerHTML = "";
+    list.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="name">${p.name}</div>
+        <div class="stock">${p.stock} available</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
 
-    loadStock();
-  </script>
+  function filterProducts() {
+    const q = document.getElementById("search").value.toLowerCase();
+    render(products.filter(p => p.name.toLowerCase().includes(q)));
+  }
 
-</body>
-</html>
+  loadStock();
+</script>
